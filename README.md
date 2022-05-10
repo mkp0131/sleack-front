@@ -1,46 +1,232 @@
-# Getting Started with Create React App
+# sleack 클론
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+- mysql 설정: config/config.js
+- npx sequelize db:create
+- npm run dev (테이블 만들기)
+- npx sequelize db:seed:all
+- npm run dev (데이터 넣기)
 
-## Available Scripts
+```
+npm i react@17.0.2 react-dom@17.0.2
+npm i typescript
+npm i @types/react @types/react-dom -D
+```
 
-In the project directory, you can run:
+```
+npm i -D eslint prettier eslint-config-prettier eslint-plugin-prettier
+```
 
-### `npm start`
+- .prettierrc, .eslintrc, tsconfig.json 생성
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```json
+// .prettierrc
+{
+  "printWidth": 120, // 한줄에 MAX 120자
+  "tabWidth": 2, // space 2칸
+  "singleQuote": true, // 호따음표
+  "trailingComma": "all", // 객체뒤에 , 붙이겠다
+  "semi": true // ; 항상 붙이겠다.
+}
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+```json
+// .eslintrc
+{
+  "extends": ["plugin:prettier/recommended", "react-app"] // 프리티어 우선으로 설정
+}
+```
 
-### `npm test`
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "esModuleInterop": true, // import * as React from "react"; 대신에 import React from "react"; 사용가능
+    "sourceMap": true, // 소스맵
+    "lib": ["ES2020", "DOM"], // 최신문법
+    "jsx": "react", // 리액트
+    "module": "esnext", // 최신모듈
+    "moduleResolution": "Node", //  module을 node 가 해석
+    "target": "es5", // 변환하는 타겟
+    "strict": true, // 타입체크엄격하게
+    "resolveJsonModule": true, // json 파일 import 가능
+    "baseUrl": ".", // import 기본설정
+    "paths": {
+      // 경로를 변수로 저장
+      "@hooks/*": ["hooks/*"],
+      "@components/*": ["components/*"],
+      "@layouts/*": ["layouts/*"],
+      "@pages/*": ["pages/*"],
+      "@utils/*": ["utils/*"],
+      "@typings/*": ["typings/*"]
+    }
+  }
+}
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```js
+// webpack.config.ts
+import path from 'path';
+import ReactRefreshWebpackPlugin from '@pmmmwh/react-refresh-webpack-plugin';
+import webpack from 'webpack';
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
+import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 
-### `npm run build`
+const isDevelopment = process.env.NODE_ENV !== 'production';
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+const config: webpack.Configuration = {
+  name: 'sleact',
+  mode: isDevelopment ? 'development' : 'production',
+  devtool: !isDevelopment ? 'hidden-source-map' : 'eval',
+  resolve: {
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
+    alias: {
+      '@hooks': path.resolve(__dirname, 'hooks'),
+      '@components': path.resolve(__dirname, 'components'),
+      '@layouts': path.resolve(__dirname, 'layouts'),
+      '@pages': path.resolve(__dirname, 'pages'),
+      '@utils': path.resolve(__dirname, 'utils'),
+      '@typings': path.resolve(__dirname, 'typings'),
+    },
+  },
+  entry: {
+    app: './client',
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        loader: 'babel-loader',
+        options: {
+          presets: [
+            [
+              '@babel/preset-env',
+              {
+                targets: {
+                  browsers: ['last 2 chrome versions'],
+                },
+                debug: isDevelopment,
+              },
+            ],
+            '@babel/preset-react',
+            '@babel/preset-typescript',
+          ],
+          env: {
+            development: {
+              plugins: [
+                ['@emotion', { sourceMap: true }],
+                require.resolve('react-refresh/babel'),
+              ],
+            },
+            production: {
+              plugins: ['@emotion'],
+            },
+          },
+        },
+        exclude: path.join(__dirname, 'node_modules'),
+      },
+      {
+        test: /\.css?$/,
+        use: ['style-loader', 'css-loader'],
+      },
+    ],
+  },
+  plugins: [
+    new ForkTsCheckerWebpackPlugin({
+      async: false,
+      // eslint: {
+      //   files: "./src/**/*",
+      // },
+    }),
+    new webpack.EnvironmentPlugin({
+      NODE_ENV: isDevelopment
+        ? 'development'
+        : 'production',
+    }),
+  ],
+  output: {
+    path: path.join(__dirname, 'dist'),
+    filename: '[name].js',
+    publicPath: '/dist/',
+  },
+  devServer: {
+    historyApiFallback: true, // react router
+    port: 3090,
+    publicPath: '/dist/',
+    proxy: {
+      '/api/': {
+        target: 'http://localhost:3095',
+        changeOrigin: true,
+      },
+    },
+  },
+};
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+if (isDevelopment && config.plugins) {
+  config.plugins.push(
+    new webpack.HotModuleReplacementPlugin()
+  );
+  config.plugins.push(new ReactRefreshWebpackPlugin());
+  config.plugins.push(
+    new BundleAnalyzerPlugin({
+      analyzerMode: 'server',
+      openAnalyzer: true,
+    })
+  );
+}
+if (!isDevelopment && config.plugins) {
+  config.plugins.push(
+    new webpack.LoaderOptionsPlugin({ minimize: true })
+  );
+  config.plugins.push(
+    new BundleAnalyzerPlugin({ analyzerMode: 'static' })
+  );
+}
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+export default config;
+```
 
-### `npm run eject`
+- tsconfig-for-webpack-config.json 파일 생성
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```js
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "Node",
+    "target": "es5",
+    "esModuleInterop": true
+  }
+}
+```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- package.json
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+```
+"dev": "cross-env TS_NODE_PROJECT=\"tsconfig-for-webpack-config.json\" webpack serve --env development",
+"build": "cross-env NODE_ENV=production TS_NODE_PROJECT=\"tsconfig-for-webpack-config.json\" webpack",
+```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+### 코드 스플리팅
 
-## Learn More
+```
+npm i @loadable/component
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- loadable 로 컴포넌트를 감싸준다.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```js
+import loadable from '@loadable/component';
+
+const Home = loadable(() => import('pages/Home'));
+const NotFound = loadable(() => import('pages/NotFound'));
+
+export default function Router() {
+  return (
+    <BrowserRouter basename={process.env.PUBLIC_URL}>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+```
